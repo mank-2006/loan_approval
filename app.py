@@ -317,8 +317,15 @@ if submitted:
             unsafe_allow_html=True,
         )
 
+        cibil_column = next(
+            (column for column in feature_columns if normalized_name(column) == "cibilscore"),
+            None,
+        )
+        if cibil_column is not None:
+            st.caption(f"CIBIL score used by the model: {int(submitted_values[cibil_column])} / 900")
+
         if approval_probability is not None:
-            st.metric("Estimated approval score", f"{approval_probability:.0%}")
+            st.metric("Model-estimated approval probability", f"{approval_probability:.0%}")
             st.progress(approval_probability)
 
         st.info("This is a classroom prediction from a model trained on fictional sample records. It is not a real loan decision, and the score may not be calibrated.")
@@ -334,5 +341,5 @@ with st.sidebar:
     st.markdown("### About this demo")
     st.write("This project demonstrates supervised binary classification for loan application data.")
     st.warning("The included model learned from fictional sample rows. Do not enter real applicant information.")
-    st.markdown("### What the score means")
-    st.write("The score comes from the model’s output. It is not a bank decision or a measure of a person’s actual ability to repay.")
+    st.markdown("### What the result means")
+    st.write("The approval probability comes from the model output. It is not the applicant's CIBIL score, a bank decision, or a measure of actual ability to repay.")
