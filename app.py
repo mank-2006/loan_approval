@@ -15,7 +15,7 @@ FEATURE_LABELS = {
     "CoapplicantIncome": "Co-applicant monthly income",
     "LoanAmount": "Requested loan amount",
     "Loan_Amount_Term": "Loan repayment term (months)",
-    "Credit_History": "Credit history flag (0/1, not credit score)",
+    "CIBIL_Score": "CIBIL score (300–900)",
     "Employment_Status": "Applicant employment status",
     "Self_Employed": "Self-employed status",
     "Property_Area": "Property area",
@@ -37,7 +37,7 @@ FIELD_HELP = {
     "CoapplicantIncome": "Enter the co-applicant's monthly income in Indian rupees.",
     "LoanAmount": "Enter the total loan amount requested in Indian rupees.",
     "Loan_Amount_Term": "Enter the term in the units used by the training data, usually months.",
-    "Credit_History": "This demo expects a binary 0/1 history flag. It is not a credit bureau score.",
+    "CIBIL_Score": "Enter the applicant's CIBIL score, from 300 to 900.",
     "Property_Area": "Select one of the area categories present in the training data.",
 }
 
@@ -46,7 +46,7 @@ FIELD_CAPTIONS = {
     "CoapplicantIncome": "Co-applicant's income per month in rupees. This is separate from the applicant's income.",
     "LoanAmount": "The total amount the applicant is requesting. Example: ₹1,80,000 here means loan amount, not income.",
     "Loan_Amount_Term": "How long the applicant requests to repay the loan. Use the units in your CSV, commonly months.",
-    "Credit_History": "Use the 0/1 code from the training data. This box is not for a CIBIL score; a CIBIL score is a separate field and needs a model trained on that data.",
+    "CIBIL_Score": "Enter a CIBIL score between 300 and 900. This demo uses fictional scores; do not enter real applicant financial details.",
     "Employment_Status": "Choose the applicant's employment category.",
     "Self_Employed": "Choose the self-employment value used in your CSV.",
     "Property_Area": "Choose where the property is located.",
@@ -71,7 +71,7 @@ def to_python(value):
 
 def section_for(column: str) -> str:
     name = normalized_name(column)
-    if name in {"applicantincome", "coapplicantincome", "credithistory", "employmentstatus", "selfemployed"}:
+    if name in {"applicantincome", "coapplicantincome", "cibilscore", "employmentstatus", "selfemployed"}:
         return "Applicant profile"
     if name == "propertyarea":
         return "Property details"
@@ -161,7 +161,7 @@ st.markdown(
           <div class="eyebrow">AI for Engineers · Project demo</div>
           <h1>Loan approval preview</h1>
         </div>
-        <div class="badge">INR · MONTHLY INCOME · BUILD 6 · CREDIT FLAG</div>
+        <div class="badge">INR · MONTHLY INCOME · BUILD 7 · CIBIL SCORE</div>
       </div>
       <p>Enter an application profile to see how the trained classifier responds. The form is grouped into simple sections, and every value can be changed before you submit.</p>
       <div class="steps">
@@ -201,7 +201,7 @@ categorical_choices = {
 }
 
 st.markdown("### Application details")
-st.info("All money amounts are in Indian rupees (₹). Applicant and co-applicant income are monthly. The loan amount box is the total amount requested.")
+st.info("All money amounts are in Indian rupees (₹). Applicant and co-applicant income are monthly. Enter a CIBIL score between 300 and 900.")
 
 grouped_features = {}
 for feature in feature_columns:
@@ -247,11 +247,17 @@ with st.form("loan_application_form"):
                         )
                     else:
                         st.warning(f"No choices were found for {label}.")
-                elif name == "credithistory":
-                    submitted_values[column] = st.selectbox(
+                elif name == "cibilscore":
+                    score_default = numeric_medians.get(column, 650.0)
+                    if pd.isna(score_default):
+                        score_default = 650.0
+                    submitted_values[column] = st.number_input(
                         label,
-                        options=[1.0, 0.0],
-                        format_func=lambda value: str(int(value)),
+                        min_value=300.0,
+                        max_value=900.0,
+                        value=max(300.0, min(900.0, float(score_default))),
+                        step=10.0,
+                        format="%.0f",
                         help=help_text,
                         label_visibility="collapsed",
                         key=f"field_{column}",
