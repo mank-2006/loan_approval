@@ -161,7 +161,7 @@ st.markdown(
           <div class="eyebrow">AI for Engineers · Project demo</div>
           <h1>Loan approval preview</h1>
         </div>
-        <div class="badge">INR · MONTHLY INCOME · BUILD 7 · CIBIL SCORE</div>
+        <div class="badge">INR · MONTHLY INCOME · BUILD 8 · CIBIL CHECK</div>
       </div>
       <p>Enter an application profile to see how the trained classifier responds. The form is grouped into simple sections, and every value can be changed before you submit.</p>
       <div class="steps">
