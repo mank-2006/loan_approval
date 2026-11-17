@@ -33,6 +33,20 @@ FIELD_HELP = {
     "Property_Area": "Select one of the area categories present in the training data.",
 }
 
+FIELD_CAPTIONS = {
+    "ApplicantIncome": "Applicant's income. Example: 6,000 here means income, not the loan amount. Match the units used in your CSV.",
+    "CoapplicantIncome": "Co-applicant's income. This is separate from the applicant's income and the requested loan amount.",
+    "LoanAmount": "The amount the applicant is requesting. Example: 150 here means loan amount, not income; use your CSV's scale.",
+    "Loan_Amount_Term": "How long the applicant requests to repay the loan. Use the units in your CSV, commonly months.",
+    "Credit_History": "Enter the dataset's code for credit history. Check what 1 and 0 mean in your CSV.",
+    "Employment_Status": "Choose the applicant's employment category.",
+    "Self_Employed": "Choose the self-employment value used in your CSV.",
+    "Property_Area": "Choose where the property is located.",
+    "Monthly_Installment": "The expected monthly loan repayment amount, if this field exists in your CSV.",
+    "Existing_Debt": "The applicant's existing debt amount, using the same scale as your CSV.",
+    "Debt_To_Income_Ratio": "Debt compared with income. For example, 0.25 represents 25% if your CSV uses ratios this way.",
+}
+
 
 def normalized_name(column: str) -> str:
     return "".join(character.lower() for character in column if character.isalnum())
@@ -222,6 +236,8 @@ with st.form("loan_application_form"):
                         help=help_text,
                         key=f"field_{column}",
                     )
+
+                st.caption(FIELD_CAPTIONS.get(column, f"Enter the {label.lower()} value shown in your CSV."))
 
         st.markdown("<div style='height:.45rem'></div>", unsafe_allow_html=True)
 
