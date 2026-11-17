@@ -1,8 +1,9 @@
-"""Local Streamlit interface for the loan approval model demo."""
+"""Streamlit website for the loan approval classroom demo."""
 
 from pathlib import Path
 import re
 
+import joblib
 import pandas as pd
 import streamlit as st
 
@@ -13,7 +14,7 @@ FEATURE_LABELS = {
     "ApplicantIncome": "Applicant income",
     "CoapplicantIncome": "Co-applicant income",
     "LoanAmount": "Requested loan amount",
-    "Loan_Amount_Term": "Loan term (months)",
+    "Loan_Amount_Term": "Loan term",
     "Credit_History": "Credit history code",
     "Employment_Status": "Employment status",
     "Self_Employed": "Self-employed status",
@@ -23,6 +24,19 @@ FEATURE_LABELS = {
     "Debt_To_Income_Ratio": "Debt-to-income ratio",
 }
 
+FIELD_HELP = {
+    "ApplicantIncome": "Use the same time period and units as the training data.",
+    "CoapplicantIncome": "Use the same time period and units as the training data.",
+    "LoanAmount": "Use the same currency and scale as the training data.",
+    "Loan_Amount_Term": "Enter the term in the units used by the training data, usually months.",
+    "Credit_History": "Enter the code defined by your dataset. This demo uses 1 or 0.",
+    "Property_Area": "Select one of the area categories present in the training data.",
+}
+
+
+def normalized_name(column: str) -> str:
+    return "".join(character.lower() for character in column if character.isalnum())
+
 
 def pretty_name(column: str) -> str:
     readable = re.sub(r"(?<!^)(?=[A-Z])", " ", column.replace("_", " "))
@@ -30,12 +44,22 @@ def pretty_name(column: str) -> str:
 
 
 def to_python(value):
-    """Convert numpy scalar values from the saved encoder to Python values."""
     return value.item() if hasattr(value, "item") else value
 
 
+def section_for(column: str) -> str:
+    name = normalized_name(column)
+    if name in {"applicantincome", "coapplicantincome", "credithistory", "employmentstatus", "selfemployed"}:
+        return "Applicant profile"
+    if name == "propertyarea":
+        return "Property details"
+    if name in {"loanamount", "loanamountterm", "monthlyinstallment"}:
+        return "Loan request"
+    return "Other financial details"
+
+
 st.set_page_config(
-    page_title="Loan approval preview",
+    page_title="Loan approval demo",
     page_icon="🏦",
     layout="centered",
 )
@@ -43,36 +67,40 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-      .stApp {
-        background: linear-gradient(180deg, #f2f7f4 0%, #fbfcfb 42%, #ffffff 100%);
-      }
-      .block-container { max-width: 900px; padding-top: 2.4rem; padding-bottom: 3rem; }
+      .stApp { background: #f4f7f5; }
+      .block-container { max-width: 1020px; padding-top: 2.2rem; padding-bottom: 3rem; }
+      [data-testid="stHeader"] { background: rgba(244,247,245,.8); }
       .hero {
-        padding: 1.7rem 1.9rem 1.6rem;
-        border: 1px solid #dce9df;
-        border-radius: 22px;
-        background: rgba(255,255,255,.92);
-        box-shadow: 0 14px 42px rgba(20, 58, 39, .07);
-        margin-bottom: 1.25rem;
+        padding: 1.8rem 2rem; border-radius: 22px; color: #fff;
+        background: linear-gradient(120deg, #123d2b 0%, #176b49 62%, #2c8c61 100%);
+        box-shadow: 0 16px 38px rgba(18,61,43,.16); margin-bottom: 1.2rem;
       }
-      .eyebrow {
-        color: #23744b; font-size: .76rem; font-weight: 750;
-        letter-spacing: .14em; text-transform: uppercase; margin-bottom: .55rem;
-      }
-      .hero h1 { color: #163d2b; font-size: 2.15rem; margin: 0; letter-spacing: -.04em; }
-      .hero p { color: #5d7064; font-size: 1.02rem; margin: .55rem 0 0; }
-      div[data-testid="stForm"] {
-        background: #fff; border: 1px solid #e2ebe5; border-radius: 18px;
-        padding: 1.15rem 1.25rem 1rem;
-      }
-      div.stButton > button, div[data-testid="stFormSubmitButton"] button {
-        background: #176b43; color: #fff; border: 0; border-radius: 10px;
-        min-height: 2.9rem; font-weight: 650;
-      }
-      div.stButton > button:hover, div[data-testid="stFormSubmitButton"] button:hover {
-        background: #105634; color: #fff; border: 0;
-      }
-      .footnote { color: #718078; font-size: .86rem; }
+      .hero-top { display:flex; justify-content:space-between; align-items:center; gap:1rem; }
+      .eyebrow { color:#b8e4c9; text-transform:uppercase; letter-spacing:.13em;
+        font-size:.72rem; font-weight:750; margin:0 0 .55rem; }
+      .badge { border:1px solid rgba(255,255,255,.35); border-radius:999px;
+        padding:.38rem .7rem; color:#e7fff0; font-size:.7rem; font-weight:700;
+        letter-spacing:.06em; white-space:nowrap; }
+      .hero h1 { color:#fff; font-size:2.15rem; line-height:1.1; margin:0; letter-spacing:-.04em; }
+      .hero p { color:#d9eee1; font-size:1rem; margin:.7rem 0 0; max-width:680px; }
+      .steps { display:flex; gap:.55rem; flex-wrap:wrap; margin-top:1.25rem; }
+      .step { border-radius:999px; background:rgba(255,255,255,.12); padding:.42rem .72rem;
+        color:#f2fff6; font-size:.78rem; }
+      .section-title { color:#173e2d; font-weight:700; font-size:1.02rem; margin:.15rem 0 .1rem; }
+      .result-card { border-radius:18px; padding:1.35rem 1.5rem; margin:.4rem 0 1rem; }
+      .result-approved { background:#eaf7ef; border:1px solid #c5e7d0; }
+      .result-rejected { background:#fff0ee; border:1px solid #f3d0ca; }
+      .result-label { color:#64736a; font-size:.75rem; font-weight:750; letter-spacing:.1em; margin:0; }
+      .result-title { color:#183e2d; font-size:1.8rem; font-weight:750; margin:.2rem 0 .1rem; }
+      .result-copy { color:#586a60; margin:0; }
+      div[data-testid="stForm"] { background:#fff; border:1px solid #e2e9e4;
+        border-radius:18px; padding:1.25rem 1.35rem 1rem; }
+      div[data-testid="stFormSubmitButton"] button {
+        background:#176b49; color:white; border:0; border-radius:10px;
+        min-height:3rem; font-weight:700; }
+      div[data-testid="stFormSubmitButton"] button:hover { background:#10583a; color:white; }
+      div[data-testid="stAlert"] { border-radius:12px; }
+      .fine-print { color:#6b7970; font-size:.82rem; line-height:1.5; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -81,33 +109,34 @@ st.markdown(
 st.markdown(
     """
     <div class="hero">
-      <div class="eyebrow">AI for Engineers · MST project</div>
-      <h1>Loan approval preview</h1>
-      <p>Interactive classroom demo trained on fictional sample records.</p>
+      <div class="hero-top">
+        <div>
+          <div class="eyebrow">AI for Engineers · Project demo</div>
+          <h1>Loan approval preview</h1>
+        </div>
+        <div class="badge">FICTIONAL SAMPLE MODEL</div>
+      </div>
+      <p>Enter an application profile to see how the trained classifier responds. The form is grouped into simple sections, and every value can be changed before you submit.</p>
+      <div class="steps">
+        <span class="step">1 &nbsp; Add details</span>
+        <span class="step">2 &nbsp; Get prediction</span>
+        <span class="step">3 &nbsp; Review the estimate</span>
+      </div>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
 if not MODEL_PATH.exists():
-    st.warning("The trained model file is not here yet.")
-    st.markdown(
-        "Train the model first, then refresh this page. From this folder, run:"
-    )
-    st.code(
-        "python loan_approval_model.py --data loan_data_sample.csv --target Loan_Status",
-        language="bash",
-    )
+    st.error("The model file is missing. The website needs loan_approval_model.joblib beside app.py.")
     st.stop()
 
 try:
-    import joblib
-
     artifact = joblib.load(MODEL_PATH)
     model = artifact["model"]
     feature_columns = artifact["features"]
 except Exception as exc:
-    st.error(f"Could not load the model file: {exc}")
+    st.error(f"The model could not be opened: {exc}")
     st.stop()
 
 preprocessor = model.named_steps["preprocessor"]
@@ -115,9 +144,7 @@ numeric_columns = list(preprocessor.transformers_[0][2])
 categorical_columns = list(preprocessor.transformers_[1][2])
 
 numeric_pipeline = preprocessor.named_transformers_["numeric"]
-numeric_medians = dict(
-    zip(numeric_columns, numeric_pipeline.named_steps["imputer"].statistics_)
-)
+numeric_medians = dict(zip(numeric_columns, numeric_pipeline.named_steps["imputer"].statistics_))
 
 categorical_pipeline = preprocessor.named_transformers_["categorical"]
 encoder = categorical_pipeline.named_steps["onehot"]
@@ -126,81 +153,120 @@ categorical_choices = {
     for column, categories in zip(categorical_columns, encoder.categories_)
 }
 
-st.subheader("Application details")
-st.caption("Enter values in the same units and formats used in the training CSV.")
+st.markdown("### Application details")
+st.caption("Use the same units and category meanings as the data used to train this model.")
 
+grouped_features = {}
+for feature in feature_columns:
+    grouped_features.setdefault(section_for(feature), []).append(feature)
+
+section_notes = {
+    "Applicant profile": "Income, credit history, and employment information.",
+    "Loan request": "The requested amount and any repayment details in the dataset.",
+    "Property details": "Choose from the property-area categories learned by the model.",
+    "Other financial details": "Additional financial fields available in the training data.",
+}
+
+submitted_values = {}
 with st.form("loan_application_form"):
-    left, right = st.columns(2, gap="large")
-    submitted_values = {}
+    for section in ["Applicant profile", "Loan request", "Property details", "Other financial details"]:
+        fields = grouped_features.get(section, [])
+        if not fields:
+            continue
 
-    for index, column in enumerate(feature_columns):
-        container = left if index % 2 == 0 else right
-        label = pretty_name(column)
+        st.markdown(f'<div class="section-title">{section}</div>', unsafe_allow_html=True)
+        st.caption(section_notes[section])
+        columns = st.columns(2, gap="large")
 
-        with container:
-            if column in categorical_columns:
-                choices = categorical_choices[column]
-                if not choices:
-                    st.error(f"No training categories were found for {label}.")
-                    st.stop()
-                submitted_values[column] = st.selectbox(
-                    label,
-                    options=choices,
-                    format_func=str,
-                    help="Choices come from the categories in the training data.",
-                )
-            elif column.lower().replace("_", "") == "credithistory":
-                submitted_values[column] = st.selectbox(
-                    label,
-                    options=[1.0, 0.0],
-                    format_func=lambda value: str(int(value)),
-                    help="Use the meaning assigned to 1 and 0 in your dataset.",
-                )
-            else:
-                default = numeric_medians.get(column, 0.0)
-                if pd.isna(default):
-                    default = 0.0
-                step = 1000.0 if "income" in column.lower() else 1.0
-                submitted_values[column] = st.number_input(
-                    label,
-                    min_value=0.0,
-                    value=float(default),
-                    step=step,
-                    help="Use the same units as the values in your training CSV.",
-                )
+        for index, column in enumerate(fields):
+            with columns[index % 2]:
+                label = pretty_name(column)
+                name = normalized_name(column)
+                help_text = FIELD_HELP.get(column, "Use the same value format as the training data.")
 
-    submitted = st.form_submit_button("Check model prediction", width="stretch")
+                if column in categorical_columns:
+                    choices = categorical_choices.get(column, [])
+                    if choices:
+                        submitted_values[column] = st.selectbox(
+                            label,
+                            options=choices,
+                            format_func=str,
+                            help=help_text,
+                            key=f"field_{column}",
+                        )
+                    else:
+                        st.warning(f"No choices were found for {label}.")
+                elif name == "credithistory":
+                    submitted_values[column] = st.selectbox(
+                        label,
+                        options=[1.0, 0.0],
+                        format_func=lambda value: str(int(value)),
+                        help=help_text,
+                        key=f"field_{column}",
+                    )
+                else:
+                    default = numeric_medians.get(column, 0.0)
+                    if pd.isna(default):
+                        default = 0.0
+                    if "income" in name:
+                        step = 500.0
+                    elif "amount" in name:
+                        step = 10.0
+                    else:
+                        step = 1.0
+                    submitted_values[column] = st.number_input(
+                        label,
+                        min_value=0.0,
+                        value=float(default),
+                        step=step,
+                        help=help_text,
+                        key=f"field_{column}",
+                    )
+
+        st.markdown("<div style='height:.45rem'></div>", unsafe_allow_html=True)
+
+    submitted = st.form_submit_button("Get model prediction", width="stretch")
 
 if submitted:
     application = pd.DataFrame([submitted_values], columns=feature_columns)
-    predicted_class = int(model.predict(application)[0])
-    class_names = artifact.get("class_names", {0: "Rejected", 1: "Approved"})
-    prediction = class_names.get(predicted_class, str(predicted_class))
+    try:
+        predicted_class = int(model.predict(application)[0])
+        class_names = artifact.get("class_names", {0: "Rejected", 1: "Approved"})
+        prediction = str(class_names.get(predicted_class, predicted_class))
+        classes = list(model.named_steps["classifier"].classes_)
+        approval_probability = None
+        if hasattr(model, "predict_proba") and 1 in classes:
+            approval_probability = float(model.predict_proba(application)[0][classes.index(1)])
 
-    classifier = model.named_steps["classifier"]
-    classes = list(classifier.classes_)
-    approval_probability = None
-    if hasattr(model, "predict_proba") and 1 in classes:
-        approval_probability = float(model.predict_proba(application)[0][classes.index(1)])
+        result_style = "result-approved" if predicted_class == 1 else "result-rejected"
+        result_copy = "The model’s predicted class for these details."
+        st.markdown(
+            f"""
+            <div class="result-card {result_style}">
+              <p class="result-label">MODEL PREDICTION</p>
+              <div class="result-title">{prediction}</div>
+              <p class="result-copy">{result_copy}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    st.divider()
-    st.subheader("Model result")
-    if predicted_class == 1:
-        st.success(f"Prediction: {prediction}")
-    else:
-        st.error(f"Prediction: {prediction}")
+        if approval_probability is not None:
+            st.metric("Estimated approval score", f"{approval_probability:.0%}")
+            st.progress(approval_probability)
 
-    if approval_probability is not None:
-        st.metric("Estimated approval probability", f"{approval_probability:.1%}")
-        st.progress(approval_probability)
-
-    st.markdown(
-        '<p class="footnote">This is an educational demo trained on fictional sample records. '
-        "It is not a real lending decision, and the displayed probability may not be calibrated.</p>",
-        unsafe_allow_html=True,
-    )
+        st.info("This is a classroom prediction from a model trained on fictional sample records. It is not a real loan decision, and the score may not be calibrated.")
+    except Exception as exc:
+        st.error(f"Could not calculate a prediction: {exc}")
 else:
     st.markdown(
-        '<p class="footnote">Your entered values are used for this prediction and are not saved by this app.</p>',
+        '<p class="fine-print">The form starts with example-like values. Change them, then press <b>Get model prediction</b>. This demo is not for real loan decisions.</p>',
         unsafe_allow_html=True,
     )
+
+with st.sidebar:
+    st.markdown("### About this demo")
+    st.write("This project demonstrates supervised binary classification for loan application data.")
+    st.warning("The included model learned from fictional sample rows. Do not enter real applicant information.")
+    st.markdown("### What the score means")
+    st.write("The score comes from the model’s output. It is not a bank decision or a measure of a person’s actual ability to repay.")
