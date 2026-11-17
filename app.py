@@ -6,6 +6,7 @@ import re
 import joblib
 import pandas as pd
 import streamlit as st
+from loan_approval_model import add_affordability_features, estimate_monthly_payment
 
 
 MODEL_PATH = Path(__file__).with_name("loan_approval_model.joblib")
@@ -161,9 +162,9 @@ st.markdown(
           <div class="eyebrow">AI for Engineers · Project demo</div>
           <h1>Loan approval preview</h1>
         </div>
-        <div class="badge">INR · MONTHLY INCOME · BUILD 8 · CIBIL CHECK</div>
+        <div class="badge">INR · MONTHLY INCOME · BUILD 9 · AFFORDABILITY</div>
       </div>
-      <p>Enter an application profile to see how the trained classifier responds. The form is grouped into simple sections, and every value can be changed before you submit.</p>
+      <p>Enter an application profile to see how the classifier weighs CIBIL score and the estimated monthly repayment against household income.</p>
       <div class="steps">
         <span class="step">1 &nbsp; Add details</span>
         <span class="step">2 &nbsp; Get prediction</span>
@@ -201,7 +202,7 @@ categorical_choices = {
 }
 
 st.markdown("### Application details")
-st.info("All money amounts are in Indian rupees (₹). Applicant and co-applicant income are monthly. Enter a CIBIL score between 300 and 900.")
+st.info("All money amounts are in Indian rupees (₹). Applicant and co-applicant income are monthly. The demo estimates the monthly repayment at 12% annual interest and compares it with combined monthly income.")
 
 grouped_features = {}
 for feature in feature_columns:
@@ -295,17 +296,18 @@ with st.form("loan_application_form"):
 
 if submitted:
     application = pd.DataFrame([submitted_values], columns=feature_columns)
+    model_application = add_affordability_features(application)
     try:
-        predicted_class = int(model.predict(application)[0])
+        predicted_class = int(model.predict(model_application)[0])
         class_names = artifact.get("class_names", {0: "Rejected", 1: "Approved"})
         prediction = str(class_names.get(predicted_class, predicted_class))
         classes = list(model.named_steps["classifier"].classes_)
         approval_probability = None
         if hasattr(model, "predict_proba") and 1 in classes:
-            approval_probability = float(model.predict_proba(application)[0][classes.index(1)])
+            approval_probability = float(model.predict_proba(model_application)[0][classes.index(1)])
 
         result_style = "result-approved" if predicted_class == 1 else "result-rejected"
-        result_copy = "The model’s predicted class for these details."
+        result_copy = "The estimate weighs CIBIL, employment, and estimated repayment compared with household income."
         st.markdown(
             f"""
             <div class="result-card {result_style}">
@@ -328,7 +330,20 @@ if submitted:
             st.metric("Model-estimated approval probability", f"{approval_probability:.0%}")
             st.progress(approval_probability)
 
-        st.info("This is a classroom prediction from a model trained on fictional sample records. It is not a real loan decision, and the score may not be calibrated.")
+        applicant_income = float(submitted_values.get("ApplicantIncome", 0) or 0)
+        coapplicant_income = float(submitted_values.get("CoapplicantIncome", 0) or 0)
+        loan_amount = float(submitted_values.get("LoanAmount", 0) or 0)
+        loan_term = float(submitted_values.get("Loan_Amount_Term", 0) or 0)
+        estimated_payment = estimate_monthly_payment(loan_amount, loan_term)
+        household_income = applicant_income + coapplicant_income
+        repayment_share = estimated_payment / max(household_income, 1)
+        st.metric("Estimated monthly repayment", f"₹{estimated_payment:,.0f}")
+        st.caption(
+            f"That is about {repayment_share:.2%} of the combined monthly income. "
+            "The 12% interest rate is an example assumption, not a lender quote."
+        )
+
+        st.info("This classroom model is trained on fictional examples built around an illustrative affordability rule. It is not based on real lender decisions and must not be used for real loan approvals.")
     except Exception as exc:
         st.error(f"Could not calculate a prediction: {exc}")
 else:
@@ -340,6 +355,6 @@ else:
 with st.sidebar:
     st.markdown("### About this demo")
     st.write("This project demonstrates supervised binary classification for loan application data.")
-    st.warning("The included model learned from fictional sample rows. Do not enter real applicant information.")
+    st.warning("The included model learned from fictional examples. Do not enter real applicant information.")
     st.markdown("### What the result means")
-    st.write("The approval probability comes from the model output. It is not the applicant's CIBIL score, a bank decision, or a measure of actual ability to repay.")
+    st.write("The estimate considers CIBIL and an illustrative monthly repayment-to-income ratio. It is not a bank decision or a measure of actual ability to repay.")

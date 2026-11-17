@@ -1,12 +1,14 @@
 """Train a loan approval classifier from a labelled CSV file.
 
 Expected target values include Y/N, Yes/No, Approved/Rejected, or 1/0.
-The model uses the project features and optional financial columns when found.
+The model includes an estimated repayment-to-income feature when the required
+income, loan amount, and term columns are present.
 """
 
 from __future__ import annotations
 
 import argparse
+import math
 import sys
 from pathlib import Path
 
@@ -55,6 +57,8 @@ OPTIONAL_FINANCIAL_FEATURES = [
 
 APPROVED_LABELS = {"y", "yes", "approved", "approve", "accepted", "accept", "1", "1.0", "true"}
 REJECTED_LABELS = {"n", "no", "rejected", "reject", "declined", "decline", "0", "0.0", "false"}
+DEMO_ANNUAL_INTEREST_RATE = 0.12
+REPAYMENT_RATIO_FEATURE = "Estimated_Repayment_to_Income_Ratio"
 
 
 def normalize_name(value: str) -> str:
@@ -65,6 +69,59 @@ def normalize_name(value: str) -> str:
 def resolve_column(requested: str, columns: list[str]) -> str | None:
     by_normalized_name = {normalize_name(column): column for column in columns}
     return by_normalized_name.get(normalize_name(requested))
+
+
+def estimate_monthly_payment(
+    loan_amount: float,
+    term_months: float,
+    annual_interest_rate: float = DEMO_ANNUAL_INTEREST_RATE,
+) -> float:
+    """Estimate a fixed monthly payment for the classroom affordability feature."""
+    try:
+        principal = float(loan_amount)
+        term = float(term_months)
+    except (TypeError, ValueError):
+        return 0.0
+    if not math.isfinite(principal) or not math.isfinite(term):
+        return 0.0
+    principal = max(principal, 0.0)
+    months = int(term)
+    if principal == 0 or months <= 0:
+        return 0.0
+
+    monthly_rate = annual_interest_rate / 12
+    return principal * monthly_rate / (1 - (1 + monthly_rate) ** -months)
+
+
+def add_affordability_features(data: pd.DataFrame) -> pd.DataFrame:
+    """Add estimated payment as a share of combined monthly income when possible."""
+    result = data.copy()
+    columns = result.columns.tolist()
+    income_column = resolve_column("ApplicantIncome", columns)
+    coapplicant_column = resolve_column("CoapplicantIncome", columns)
+    amount_column = resolve_column("LoanAmount", columns)
+    term_column = resolve_column("Loan_Amount_Term", columns)
+
+    if income_column is None or amount_column is None or term_column is None:
+        return result
+
+    applicant_income = pd.to_numeric(result[income_column], errors="coerce").fillna(0)
+    coapplicant_income = (
+        pd.to_numeric(result[coapplicant_column], errors="coerce").fillna(0)
+        if coapplicant_column
+        else 0
+    )
+    household_income = (applicant_income + coapplicant_income).clip(lower=1)
+    payments = pd.Series(
+        [
+            estimate_monthly_payment(amount, term)
+            for amount, term in zip(result[amount_column], result[term_column])
+        ],
+        index=result.index,
+        dtype="float64",
+    )
+    result[REPAYMENT_RATIO_FEATURE] = (payments / household_income).clip(upper=10)
+    return result
 
 
 def resolve_features(
@@ -154,7 +211,7 @@ def make_pipeline(data: pd.DataFrame, feature_columns: list[str]) -> Pipeline:
     return Pipeline(
         steps=[
             ("preprocessor", preprocessor),
-            ("classifier", LogisticRegression(max_iter=2000, class_weight="balanced")),
+            ("classifier", LogisticRegression(max_iter=2000)),
         ]
     )
 
@@ -214,10 +271,14 @@ def main() -> int:
             stratify=y,
         )
 
-        model = make_pipeline(X_train, feature_columns)
-        model.fit(X_train, y_train)
-        predictions = model.predict(X_test)
-        probabilities = model.predict_proba(X_test)[:, 1]
+        X_train_model = add_affordability_features(X_train)
+        X_test_model = add_affordability_features(X_test)
+        model_feature_columns = X_train_model.columns.tolist()
+
+        model = make_pipeline(X_train_model, model_feature_columns)
+        model.fit(X_train_model, y_train)
+        predictions = model.predict(X_test_model)
+        probabilities = model.predict_proba(X_test_model)[:, 1]
 
         print(f"Rows used: {len(X)} (training: {len(X_train)}, test: {len(X_test)})")
         print("Features:", ", ".join(feature_columns))
@@ -233,16 +294,20 @@ def main() -> int:
 
         # Keep the holdout metrics above, then train the saved model on all
         # labelled rows so no usable training examples are discarded.
-        final_model = make_pipeline(X, feature_columns)
-        final_model.fit(X, y)
+        X_model = add_affordability_features(X)
+        model_feature_columns = X_model.columns.tolist()
+        final_model = make_pipeline(X_model, model_feature_columns)
+        final_model.fit(X_model, y)
         model_path = Path(args.model_out)
         model_path.parent.mkdir(parents=True, exist_ok=True)
         joblib.dump(
             {
                 "model": final_model,
                 "features": feature_columns,
+                "model_features": model_feature_columns,
                 "target": target_column,
                 "class_names": {0: "Rejected", 1: "Approved"},
+                "demo_interest_rate": DEMO_ANNUAL_INTEREST_RATE,
             },
             model_path,
         )
