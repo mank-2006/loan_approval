@@ -24,26 +24,34 @@ FEATURE_LABELS = {
     "Debt_To_Income_Ratio": "Debt-to-income ratio",
 }
 
+RUPEE_FEATURES = {
+    "applicantincome",
+    "coapplicantincome",
+    "loanamount",
+    "monthlyinstallment",
+    "existingdebt",
+}
+
 FIELD_HELP = {
-    "ApplicantIncome": "Enter the applicant's monthly income, using the same currency and scale as the training data.",
-    "CoapplicantIncome": "Enter the co-applicant's monthly income, using the same currency and scale as the training data.",
-    "LoanAmount": "Use the same currency and scale as the training data.",
+    "ApplicantIncome": "Enter the applicant's monthly income in Indian rupees.",
+    "CoapplicantIncome": "Enter the co-applicant's monthly income in Indian rupees.",
+    "LoanAmount": "Enter the total loan amount requested in Indian rupees.",
     "Loan_Amount_Term": "Enter the term in the units used by the training data, usually months.",
     "Credit_History": "Enter the code defined by your dataset. This demo uses 1 or 0.",
     "Property_Area": "Select one of the area categories present in the training data.",
 }
 
 FIELD_CAPTIONS = {
-    "ApplicantIncome": "Applicant's monthly income. Example: 6,000 here means monthly income, not the requested loan amount.",
-    "CoapplicantIncome": "Co-applicant's monthly income. Keep it separate from the applicant's income and the requested loan amount.",
-    "LoanAmount": "The amount the applicant is requesting. Example: 150 here means loan amount, not income; use your CSV's scale.",
+    "ApplicantIncome": "Applicant's income per month. Example: ₹6,000 here means monthly income, not the requested loan amount.",
+    "CoapplicantIncome": "Co-applicant's income per month in rupees. This is separate from the applicant's income.",
+    "LoanAmount": "The total amount the applicant is requesting. Example: ₹1,80,000 here means loan amount, not income.",
     "Loan_Amount_Term": "How long the applicant requests to repay the loan. Use the units in your CSV, commonly months.",
     "Credit_History": "Enter the dataset's code for credit history. Check what 1 and 0 mean in your CSV.",
     "Employment_Status": "Choose the applicant's employment category.",
     "Self_Employed": "Choose the self-employment value used in your CSV.",
     "Property_Area": "Choose where the property is located.",
-    "Monthly_Installment": "The expected monthly loan repayment amount, if this field exists in your CSV.",
-    "Existing_Debt": "The applicant's existing debt amount, using the same scale as your CSV.",
+    "Monthly_Installment": "The expected monthly loan repayment in Indian rupees.",
+    "Existing_Debt": "The applicant's existing debt amount in Indian rupees.",
     "Debt_To_Income_Ratio": "Debt compared with income. For example, 0.25 represents 25% if your CSV uses ratios this way.",
 }
 
@@ -128,7 +136,7 @@ st.markdown(
           <div class="eyebrow">AI for Engineers · Project demo</div>
           <h1>Loan approval preview</h1>
         </div>
-        <div class="badge">FICTIONAL SAMPLE MODEL</div>
+        <div class="badge">INR · MONTHLY INCOME · BUILD 3</div>
       </div>
       <p>Enter an application profile to see how the trained classifier responds. The form is grouped into simple sections, and every value can be changed before you submit.</p>
       <div class="steps">
@@ -168,7 +176,7 @@ categorical_choices = {
 }
 
 st.markdown("### Application details")
-st.caption("Use the same units and category meanings as the data used to train this model.")
+st.info("All money amounts are in Indian rupees (₹). Applicant and co-applicant income are monthly. The loan amount box is the total amount requested.")
 
 grouped_features = {}
 for feature in feature_columns:
@@ -196,6 +204,8 @@ with st.form("loan_application_form"):
             with columns[index % 2]:
                 label = pretty_name(column)
                 name = normalized_name(column)
+                if name in RUPEE_FEATURES:
+                    label += " (₹)"
                 help_text = FIELD_HELP.get(column, "Use the same value format as the training data.")
 
                 if column in categorical_columns:
@@ -223,9 +233,13 @@ with st.form("loan_application_form"):
                     if pd.isna(default):
                         default = 0.0
                     if "income" in name:
+                        step = 1000.0
+                    elif name in {"loanamount", "existingdebt"}:
+                        step = 10000.0
+                    elif name == "monthlyinstallment":
                         step = 500.0
-                    elif "amount" in name:
-                        step = 10.0
+                    elif name == "debttoincomeratio":
+                        step = 0.01
                     else:
                         step = 1.0
                     submitted_values[column] = st.number_input(
@@ -233,6 +247,7 @@ with st.form("loan_application_form"):
                         min_value=0.0,
                         value=float(default),
                         step=step,
+                        format="%.2f" if name == "debttoincomeratio" else "%.0f",
                         help=help_text,
                         key=f"field_{column}",
                     )
