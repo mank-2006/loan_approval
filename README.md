@@ -1,26 +1,26 @@
 # Loan Approval Prediction Demo
 
-Supervised machine learning demo that predicts whether a loan application may be approved or rejected from applicant details.
+A supervised classification project that predicts an application as Approved or Rejected from applicant details.
 
-## About this demo
+## Website
 
-The included model is trained on fictional sample records. It is for learning and demonstration only; it is not a real lending decision tool and should not be used to assess real applicants. The website does not save submitted application details.
+The interactive Streamlit app is in `app.py`. The trained model artifact is `loan_approval_model.joblib`.
 
-## Files
+The applicant and co-applicant income fields are monthly income in Indian rupees (₹). Other money fields use rupees, and loan amount means the total amount requested.
 
-- `app.py`: the interactive Streamlit website.
-- `loan_approval_model.joblib`: the trained demo model.
-- `requirements.txt`: pinned Python packages for deployment.
+## Data and limitations
+
+The included sample rows and trained model are fictional and intended for classroom demonstration only. Do not use the results to make real lending decisions or enter real applicant information.
 
 ## Run locally
 
-Use Python 3.14 to match the model file:
+Use Python 3.14 to match the saved model:
 
 ```bash
 python -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Publish
+## Deploy
 
-This repository is prepared for Streamlit Community Cloud. Sign in at [share.streamlit.io](https://share.streamlit.io/), create an app from this repository, select the `main` branch and `app.py`, choose Python 3.14 in advanced settings, and deploy. The resulting `streamlit.app` address can be shared publicly.
+The app can be deployed on [Streamlit Community Cloud](https://share.streamlit.io/). Create an app from this repository, select the `main` branch and `app.py`, choose Python 3.14 in advanced settings, then deploy.
