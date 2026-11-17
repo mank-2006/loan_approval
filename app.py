@@ -14,9 +14,9 @@ FEATURE_LABELS = {
     "ApplicantIncome": "Applicant monthly income",
     "CoapplicantIncome": "Co-applicant monthly income",
     "LoanAmount": "Requested loan amount",
-    "Loan_Amount_Term": "Loan term",
-    "Credit_History": "Credit history code",
-    "Employment_Status": "Employment status",
+    "Loan_Amount_Term": "Loan repayment term (months)",
+    "Credit_History": "Credit history code (1 or 0)",
+    "Employment_Status": "Applicant employment status",
     "Self_Employed": "Self-employed status",
     "Property_Area": "Property area",
     "Monthly_Installment": "Monthly installment",
@@ -136,7 +136,7 @@ st.markdown(
           <div class="eyebrow">AI for Engineers · Project demo</div>
           <h1>Loan approval preview</h1>
         </div>
-        <div class="badge">INR · MONTHLY INCOME · BUILD 3</div>
+        <div class="badge">INR · MONTHLY INCOME · BUILD 4 · LABELLED FIELDS</div>
       </div>
       <p>Enter an application profile to see how the trained classifier responds. The form is grouped into simple sections, and every value can be changed before you submit.</p>
       <div class="steps">
@@ -207,6 +207,7 @@ with st.form("loan_application_form"):
                 if name in RUPEE_FEATURES:
                     label += " (₹)"
                 help_text = FIELD_HELP.get(column, "Use the same value format as the training data.")
+                st.markdown(f"**{label}**")
 
                 if column in categorical_columns:
                     choices = categorical_choices.get(column, [])
@@ -216,6 +217,7 @@ with st.form("loan_application_form"):
                             options=choices,
                             format_func=str,
                             help=help_text,
+                            label_visibility="collapsed",
                             key=f"field_{column}",
                         )
                     else:
@@ -226,6 +228,7 @@ with st.form("loan_application_form"):
                         options=[1.0, 0.0],
                         format_func=lambda value: str(int(value)),
                         help=help_text,
+                        label_visibility="collapsed",
                         key=f"field_{column}",
                     )
                 else:
@@ -249,6 +252,7 @@ with st.form("loan_application_form"):
                         step=step,
                         format="%.2f" if name == "debttoincomeratio" else "%.0f",
                         help=help_text,
+                        label_visibility="collapsed",
                         key=f"field_{column}",
                     )
 
