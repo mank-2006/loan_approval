@@ -1,26 +1,26 @@
-# Loan Approval Prediction Demo
+# Loan approval preview
 
-A supervised classification project that predicts an application as Approved or Rejected from applicant details.
+A Streamlit classroom demo that predicts Approved or Rejected using the included model. The model and sample records are fictional and are not suitable for real lending decisions.
 
-## Website
-
-The interactive Streamlit app is in `app.py`. The trained model artifact is `loan_approval_model.joblib`.
-
-The applicant and co-applicant income fields are monthly income in Indian rupees (₹). Other money fields use rupees, and loan amount means the total amount requested.
-
-## Data and limitations
-
-The included sample rows and trained model are fictional and intended for classroom demonstration only. Do not use the results to make real lending decisions or enter real applicant information.
+Applicant and co-applicant income fields are monthly amounts in Indian rupees (₹). Other money fields are also in rupees, and loan amount means the total amount requested. The CIBIL score field accepts values from 300 to 900.
 
 ## Run locally
 
 Use Python 3.14 to match the saved model:
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
 python -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Deploy
+## Publish with Streamlit Community Cloud
 
-The app can be deployed on [Streamlit Community Cloud](https://share.streamlit.io/). Create an app from this repository, select the `main` branch and `app.py`, choose Python 3.14 in advanced settings, then deploy.
+1. Upload the files in this folder to a GitHub repository.
+2. Sign in at https://share.streamlit.io/ using GitHub.
+3. Choose **Create app**, select the repository and branch, and set the app file to `app.py`.
+4. In advanced settings, select Python 3.14 to match the saved model.
+5. Deploy the app and share the generated `streamlit.app` address.
+
+Use only fictional data in this public demo. The model is trained on synthetic records and should not be used to make real loan decisions.
