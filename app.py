@@ -11,8 +11,8 @@ import streamlit as st
 MODEL_PATH = Path(__file__).with_name("loan_approval_model.joblib")
 
 FEATURE_LABELS = {
-    "ApplicantIncome": "Applicant income",
-    "CoapplicantIncome": "Co-applicant income",
+    "ApplicantIncome": "Applicant monthly income",
+    "CoapplicantIncome": "Co-applicant monthly income",
     "LoanAmount": "Requested loan amount",
     "Loan_Amount_Term": "Loan term",
     "Credit_History": "Credit history code",
@@ -25,8 +25,8 @@ FEATURE_LABELS = {
 }
 
 FIELD_HELP = {
-    "ApplicantIncome": "Use the same time period and units as the training data.",
-    "CoapplicantIncome": "Use the same time period and units as the training data.",
+    "ApplicantIncome": "Enter the applicant's monthly income, using the same currency and scale as the training data.",
+    "CoapplicantIncome": "Enter the co-applicant's monthly income, using the same currency and scale as the training data.",
     "LoanAmount": "Use the same currency and scale as the training data.",
     "Loan_Amount_Term": "Enter the term in the units used by the training data, usually months.",
     "Credit_History": "Enter the code defined by your dataset. This demo uses 1 or 0.",
@@ -34,8 +34,8 @@ FIELD_HELP = {
 }
 
 FIELD_CAPTIONS = {
-    "ApplicantIncome": "Applicant's income. Example: 6,000 here means income, not the loan amount. Match the units used in your CSV.",
-    "CoapplicantIncome": "Co-applicant's income. This is separate from the applicant's income and the requested loan amount.",
+    "ApplicantIncome": "Applicant's monthly income. Example: 6,000 here means monthly income, not the requested loan amount.",
+    "CoapplicantIncome": "Co-applicant's monthly income. Keep it separate from the applicant's income and the requested loan amount.",
     "LoanAmount": "The amount the applicant is requesting. Example: 150 here means loan amount, not income; use your CSV's scale.",
     "Loan_Amount_Term": "How long the applicant requests to repay the loan. Use the units in your CSV, commonly months.",
     "Credit_History": "Enter the dataset's code for credit history. Check what 1 and 0 mean in your CSV.",
@@ -175,7 +175,7 @@ for feature in feature_columns:
     grouped_features.setdefault(section_for(feature), []).append(feature)
 
 section_notes = {
-    "Applicant profile": "Income, credit history, and employment information.",
+    "Applicant profile": "Monthly income, credit history, and employment information.",
     "Loan request": "The requested amount and any repayment details in the dataset.",
     "Property details": "Choose from the property-area categories learned by the model.",
     "Other financial details": "Additional financial fields available in the training data.",
