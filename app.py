@@ -123,6 +123,31 @@ st.markdown(
       div[data-testid="stFormSubmitButton"] button:hover { background:#10583a; color:white; }
       div[data-testid="stAlert"] { border-radius:12px; }
       .fine-print { color:#6b7970; font-size:.82rem; line-height:1.5; }
+      [data-testid="stAppViewContainer"] { color:#17271e; }
+      [data-testid="stWidgetLabel"] p, [data-testid="stWidgetLabel"] label {
+        color:#183728 !important; font-weight:700 !important;
+      }
+      [data-testid="stCaptionContainer"] p {
+        color:#344b3d !important; font-size:.86rem !important;
+      }
+      [data-testid="stMarkdownContainer"] p, [data-testid="stMarkdownContainer"] li {
+        color:#253b2e;
+      }
+      [data-testid="stNumberInput"] input,
+      [data-testid="stTextInput"] input,
+      [data-baseweb="select"] input {
+        color:#14251b !important; background:#ffffff !important;
+        -webkit-text-fill-color:#14251b !important;
+      }
+      [data-testid="stNumberInput"] input,
+      [data-testid="stTextInput"] input,
+      [data-baseweb="select"] > div { border-color:#718579 !important; }
+      [data-testid="stNumberInput"] div[role="button"] { color:#253b2e !important; }
+      .hero p { color:#e7f4eb !important; }
+      .hero .eyebrow { color:#c9efd7 !important; }
+      .hero .badge { color:#ffffff !important; }
+      .result-copy { color:#344b3d !important; }
+      .fine-print { color:#43564a !important; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -136,7 +161,7 @@ st.markdown(
           <div class="eyebrow">AI for Engineers · Project demo</div>
           <h1>Loan approval preview</h1>
         </div>
-        <div class="badge">INR · MONTHLY INCOME · BUILD 4 · LABELLED FIELDS</div>
+        <div class="badge">INR · MONTHLY INCOME · BUILD 5 · HIGH CONTRAST</div>
       </div>
       <p>Enter an application profile to see how the trained classifier responds. The form is grouped into simple sections, and every value can be changed before you submit.</p>
       <div class="steps">
